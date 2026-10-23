@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simple vector launcher icon: a shopping bag on green. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#0ABF53"
+        android:pathData="M54,0A54,54 0,1 1,54 108A54,54 0,1 1,54 0Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M34,42h40l-3,36a4,4 0,0 1,-4 4H41a4,4 0,0 1,-4 -4Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="5"
+        android:pathData="M44,46V38a10,10 0,0 1,20 0v8" />
+</vector>

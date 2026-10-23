@@ -1,0 +1,53 @@
+name: Build APK
+
+# Builds an installable APK on GitHub's servers (no Android Studio needed)
+# and publishes it as a downloadable release called "Latest APK".
+#
+# Optional repository variable (Settings → Secrets and variables → Actions → Variables):
+#   BACKEND_URL  e.g. https://upi-demo-backend.vercel.app   (baked in as the default;
+#                you can also set it inside the app with the gear icon)
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build release APK
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_URL }}
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleRelease --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk UpiShop.apk
+
+      - name: Upload as build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: UpiShop-apk
+          path: UpiShop.apk
+
+      - name: Publish as "Latest APK" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest-apk --yes --cleanup-tag || true
+          gh release create latest-apk UpiShop.apk \
+            --title "Latest APK" \
+            --notes "Built from ${GITHUB_SHA::7}. Open this page on your phone and tap UpiShop.apk to install." \
+            --target "$GITHUB_SHA"

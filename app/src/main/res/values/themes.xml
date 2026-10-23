@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- A Material (AppCompat-based) theme is required: the Adyen Component
+         is made of Material views and inflates against this theme. -->
+    <style name="Theme.UpiShop" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">#0ABF53</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+    </style>
+</resources>

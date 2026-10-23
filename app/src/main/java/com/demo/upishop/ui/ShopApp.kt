@@ -21,6 +21,8 @@ private val Green = Color(0xFF0ABF53)
 fun ShopApp(viewModel: ShopViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showSettings by remember { mutableStateOf(false) }
+    var showLogs by remember { mutableStateOf(false) }
+    val onLogs = { showLogs = true }
 
     val colors = if (isSystemInDarkTheme()) {
         darkColorScheme(primary = Green, onPrimary = Color.White)
@@ -39,6 +41,7 @@ fun ShopApp(viewModel: ShopViewModel) {
                 onOpenCart = { viewModel.open(Screen.CART) },
                 onSettings = { showSettings = true },
                 onRetry = viewModel::loadConfig,
+                onLogs = onLogs,
             )
             Screen.CART -> CartScreen(
                 state = state,
@@ -46,17 +49,24 @@ fun ShopApp(viewModel: ShopViewModel) {
                 onRemove = viewModel::remove,
                 onBack = viewModel::back,
                 onPay = viewModel::startCheckout,
+                onLogs = onLogs,
             )
             Screen.CHECKOUT -> CheckoutScreen(
                 state = state,
                 viewModel = viewModel,
                 onBack = viewModel::back,
                 onRetry = viewModel::startCheckout,
+                onLogs = onLogs,
             )
             Screen.RESULT -> ResultScreen(
                 state = state,
                 onDone = viewModel::back,
+                onLogs = onLogs,
             )
+        }
+
+        if (showLogs) {
+            LogsDialog(onDismiss = { showLogs = false })
         }
 
         if (showSettings) {

@@ -53,12 +53,14 @@ fun ShopScreen(
     onOpenCart: () -> Unit,
     onSettings: () -> Unit,
     onRetry: () -> Unit,
+    onLogs: () -> Unit,
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("UPI Shop") },
                 actions = {
+                    LogsButton(onLogs)
                     IconButton(onClick = onSettings) {
                         Icon(Icons.Filled.Settings, contentDescription = "Backend settings")
                     }

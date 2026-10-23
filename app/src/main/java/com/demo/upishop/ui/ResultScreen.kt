@@ -13,6 +13,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -24,8 +26,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.demo.upishop.UiState
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ResultScreen(state: UiState, onDone: () -> Unit) {
+fun ResultScreen(state: UiState, onDone: () -> Unit, onLogs: () -> Unit) {
     val result = state.result ?: return
 
     val (icon, title, color) = when {
@@ -40,7 +43,14 @@ fun ResultScreen(state: UiState, onDone: () -> Unit) {
         else -> result.message ?: "The payment was ${result.resultCode.lowercase()}."
     }
 
-    Scaffold { padding ->
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Payment result") },
+                actions = { LogsButton(onLogs) },
+            )
+        },
+    ) { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,

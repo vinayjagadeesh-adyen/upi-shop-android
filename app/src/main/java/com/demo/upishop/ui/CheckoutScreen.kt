@@ -48,11 +48,13 @@ fun CheckoutScreen(
     viewModel: ShopViewModel,
     onBack: () -> Unit,
     onRetry: () -> Unit,
+    onLogs: () -> Unit,
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Pay with UPI") },
+                actions = { LogsButton(onLogs) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")

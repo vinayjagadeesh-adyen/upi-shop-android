@@ -7,6 +7,7 @@
          manifest declares upi://pay, and it merges into this one. -->
 
     <application
+        android:name=".UpiShopApplication"
         android:allowBackup="false"
         android:icon="@drawable/ic_launcher"
         android:roundIcon="@drawable/ic_launcher"

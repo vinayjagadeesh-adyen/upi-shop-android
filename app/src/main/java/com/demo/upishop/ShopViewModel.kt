@@ -94,6 +94,8 @@ class ShopViewModel(application: Application) : AndroidViewModel(application) {
     private val api get() = BackendApi(_state.value.backendUrl)
 
     init {
+        AppLog.i(TAG, "Return URL: $returnUrl")
+        AppLog.i(TAG, "Backend URL in use: ${_state.value.backendUrl.ifBlank { "(not set)" }}")
         loadConfig()
     }
 
@@ -108,8 +110,14 @@ class ShopViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val config = api.config()
+                AppLog.i(
+                    TAG,
+                    "Config loaded: environment=${config.environment}, clientKey=${AppLog.maskKey(config.clientKey)}, " +
+                        "items=${config.items.size}",
+                )
                 _state.update { it.copy(config = config, loadingConfig = false) }
             } catch (e: Exception) {
+                AppLog.e(TAG, "Loading config failed: ${e.message}")
                 _state.update { it.copy(loadingConfig = false, configError = e.message) }
             }
         }
@@ -117,6 +125,7 @@ class ShopViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setBackendUrl(url: String) {
         val clean = url.trim().trimEnd('/')
+        AppLog.i(TAG, "Backend URL changed to $clean")
         prefs.edit().putString(KEY_BACKEND_URL, clean).apply()
         _state.update { it.copy(backendUrl = clean, config = null, cart = emptyMap()) }
         loadConfig()
@@ -132,9 +141,13 @@ class ShopViewModel(application: Application) : AndroidViewModel(application) {
         it.copy(cart = if (quantity <= 0) it.cart - productId else it.cart + (productId to quantity))
     }
 
-    fun open(screen: Screen) = _state.update { it.copy(screen = screen) }
+    fun open(screen: Screen) {
+        AppLog.i(TAG, "Screen → $screen")
+        _state.update { it.copy(screen = screen) }
+    }
 
     fun back() = _state.update {
+        AppLog.i(TAG, "Back from ${it.screen}")
         when (it.screen) {
             Screen.CART -> it.copy(screen = Screen.SHOP)
             Screen.CHECKOUT -> it.copy(screen = Screen.CART, checkout = null, checkoutError = null, talkingToServer = false)
@@ -153,6 +166,7 @@ class ShopViewModel(application: Application) : AndroidViewModel(application) {
         val config = current.config ?: return
         if (current.cart.isEmpty()) return
 
+        AppLog.i(TAG, "Checkout started: cart=${current.cart}, total=${current.cartTotal()} (minor units)")
         _state.update {
             it.copy(screen = Screen.CHECKOUT, preparingCheckout = true, checkout = null, checkoutError = null)
         }
@@ -161,6 +175,12 @@ class ShopViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val response = PaymentMethodsApiResponse.SERIALIZER.deserialize(api.paymentMethods(current.cart))
                 val methods = response.paymentMethods.orEmpty()
+                AppLog.i(
+                    TAG,
+                    "Payment methods: " + methods.joinToString { m ->
+                        "${m.type}" + (m.apps?.let { apps -> " apps=[" + apps.joinToString { a -> a.id.orEmpty() } + "]" } ?: "")
+                    }.ifBlank { "(none)" },
+                )
                 // Prefer the parent "upi" method (it carries the app list for Smart Intent).
                 val upi = methods.firstOrNull { it.type == PaymentMethodTypes.UPI }
                     ?: methods.firstOrNull { it.type in UPIComponent.PAYMENT_METHOD_TYPES }
@@ -169,6 +189,7 @@ class ShopViewModel(application: Application) : AndroidViewModel(application) {
                             methods.joinToString { it.type.orEmpty() }.ifBlank { "none" },
                     )
 
+                AppLog.i(TAG, "Using payment method type=${upi.type}")
                 val total = current.cartTotal()
                 val configuration = CheckoutConfiguration(
                     environment = if (config.environment == "live-in") Environment.INDIA else Environment.TEST,
@@ -177,19 +198,26 @@ class ShopViewModel(application: Application) : AndroidViewModel(application) {
                     amount = Amount(currency = config.currency, value = total),
                 )
 
+                val key = UUID.randomUUID().toString()
+                AppLog.i(
+                    TAG,
+                    "UPI Component configured: environment=${config.environment}, amount=${config.currency} $total, key=$key",
+                )
                 _state.update {
                     it.copy(
                         preparingCheckout = false,
-                        checkout = CheckoutSetup(upi, configuration, UUID.randomUUID().toString(), total),
+                        checkout = CheckoutSetup(upi, configuration, key, total),
                     )
                 }
             } catch (e: Exception) {
+                AppLog.e(TAG, "Preparing checkout failed: ${e.message}", e.takeUnless { it is BackendException })
                 _state.update { it.copy(preparingCheckout = false, checkoutError = e.message) }
             }
         }
     }
 
     fun onRedirectIntent(intent: Intent) {
+        AppLog.i(TAG, "Redirect returned to app: ${intent.data}")
         _redirectIntents.tryEmit(intent)
     }
 
@@ -198,15 +226,21 @@ class ShopViewModel(application: Application) : AndroidViewModel(application) {
 
         // Shopper picked an app and tapped Pay.
         override fun onSubmit(state: UPIComponentState) {
-            if (!isCheckingOut()) return
+            if (!isCheckingOut()) return AppLog.w(TAG, "onSubmit ignored: shopper left checkout")
             val cart = _state.value.cart
             val data = PaymentComponentData.SERIALIZER.serialize(state.data)
+            AppLog.i(
+                TAG,
+                "Component onSubmit: type=${state.data.paymentMethod?.type}, appId=${state.data.paymentMethod?.appId}, " +
+                    "valid=${state.isInputValid}",
+            )
             _state.update { it.copy(talkingToServer = true, checkoutError = null) }
 
             viewModelScope.launch {
                 try {
                     handleBackendResponse(api.payments(cart, data, returnUrl))
                 } catch (e: Exception) {
+                    AppLog.e(TAG, "/payments failed: ${e.message}")
                     finish(PaymentResult("Error", e.message, null, null))
                 }
             }
@@ -214,20 +248,23 @@ class ShopViewModel(application: Application) : AndroidViewModel(application) {
 
         // The await action finished polling (or a redirect came back).
         override fun onAdditionalDetails(actionComponentData: ActionComponentData) {
-            if (!isCheckingOut()) return
+            if (!isCheckingOut()) return AppLog.w(TAG, "onAdditionalDetails ignored: shopper left checkout")
             val data = ActionComponentData.SERIALIZER.serialize(actionComponentData)
+            AppLog.i(TAG, "Component onAdditionalDetails: keys=${actionComponentData.details?.keys()?.asSequence()?.toList()}")
             _state.update { it.copy(talkingToServer = true) }
 
             viewModelScope.launch {
                 try {
                     handleBackendResponse(api.paymentsDetails(data))
                 } catch (e: Exception) {
+                    AppLog.e(TAG, "/payments/details failed: ${e.message}")
                     finish(PaymentResult("Error", e.message, null, null))
                 }
             }
         }
 
         override fun onError(componentError: ComponentError) {
+            AppLog.e(TAG, "Component onError: ${componentError.errorMessage}", componentError.exception)
             if (!isCheckingOut()) return
             // Includes "Payment was not completed" when polling ends without a final result.
             finish(PaymentResult("Error", componentError.errorMessage, null, null))
@@ -249,6 +286,12 @@ class ShopViewModel(application: Application) : AndroidViewModel(application) {
         if (!isCheckingOut()) return
         if (actionJson != null) {
             // e.g. "await" for UPI Intent: the Component opens the UPI app and polls.
+            AppLog.i(
+                TAG,
+                "Action received: type=${actionJson.optString("type")}, " +
+                    "paymentMethodType=${actionJson.optString("paymentMethodType")}, " +
+                    "url=${actionJson.optString("url").substringBefore('?').ifBlank { "(none)" }}",
+            )
             _state.update { it.copy(talkingToServer = false) }
             _actions.send(Action.SERIALIZER.deserialize(actionJson))
             return
@@ -265,7 +308,12 @@ class ShopViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun finish(result: PaymentResult) {
-        if (!isCheckingOut()) return
+        if (!isCheckingOut()) return AppLog.w(TAG, "Result ${result.resultCode} ignored: shopper left checkout")
+        AppLog.i(
+            TAG,
+            "Payment finished: resultCode=${result.resultCode}, message=${result.message}, " +
+                "reference=${result.merchantReference ?: lastReference}, psp=${result.pspReference}",
+        )
         _state.update {
             it.copy(
                 screen = Screen.RESULT,
@@ -281,6 +329,7 @@ class ShopViewModel(application: Application) : AndroidViewModel(application) {
     // endregion
 
     companion object {
+        private const val TAG = "Shop"
         private const val KEY_BACKEND_URL = "backend_url"
         private const val MAX_QUANTITY = 10
     }

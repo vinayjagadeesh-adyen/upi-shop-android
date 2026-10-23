@@ -42,6 +42,7 @@ fun CartScreen(
     onRemove: (String) -> Unit,
     onBack: () -> Unit,
     onPay: () -> Unit,
+    onLogs: () -> Unit,
 ) {
     val lines = state.config?.items.orEmpty().filter { (state.cart[it.id] ?: 0) > 0 }
     val total = state.cartTotal()
@@ -50,6 +51,7 @@ fun CartScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Your cart") },
+                actions = { LogsButton(onLogs) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")

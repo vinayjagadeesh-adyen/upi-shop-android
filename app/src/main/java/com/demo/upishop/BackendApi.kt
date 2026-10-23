@@ -78,11 +78,19 @@ class BackendApi(private val baseUrl: String) {
 
     private suspend fun request(method: String, path: String, body: JSONObject?): JSONObject =
         withContext(Dispatchers.IO) {
-            if (baseUrl.isBlank()) throw BackendException("Set the backend URL first (gear icon).")
+            if (baseUrl.isBlank()) {
+                AppLog.w(TAG, "$method $path skipped: no backend URL set")
+                throw BackendException("Set the backend URL first (gear icon).")
+            }
+
+            val url = baseUrl.trimEnd('/') + path
+            AppLog.i(TAG, "→ $method $url" + (body?.let { " body=" + AppLog.clip(it.toString()) } ?: ""))
+            val started = System.currentTimeMillis()
 
             val connection = try {
-                URL(baseUrl.trimEnd('/') + path).openConnection() as HttpURLConnection
+                URL(url).openConnection() as HttpURLConnection
             } catch (e: Exception) {
+                AppLog.e(TAG, "Invalid backend URL: $url", e)
                 throw BackendException("Backend URL is not valid: $baseUrl")
             }
 
@@ -100,18 +108,28 @@ class BackendApi(private val baseUrl: String) {
                 val status = connection.responseCode
                 val stream = if (status in 200..299) connection.inputStream else connection.errorStream
                 val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                val took = System.currentTimeMillis() - started
                 val json = runCatching { JSONObject(text) }.getOrNull()
 
                 if (status !in 200..299) {
+                    AppLog.e(TAG, "← $method $path HTTP $status in ${took}ms body=" + AppLog.clip(text))
                     val message = json?.optString("error")?.takeIf { it.isNotBlank() }
                         ?: "Backend returned HTTP $status"
                     throw BackendException(message)
                 }
-                json ?: throw BackendException("Backend sent a response that isn't JSON.")
+                AppLog.i(TAG, "← $method $path HTTP $status in ${took}ms body=" + AppLog.clip(text))
+                json ?: throw BackendException("Backend sent a response that isn't JSON.").also {
+                    AppLog.e(TAG, "Response from $path is not JSON (Vercel login page? deployment protection?)")
+                }
             } catch (e: IOException) {
+                AppLog.e(TAG, "✕ $method $path network error after ${System.currentTimeMillis() - started}ms", e)
                 throw BackendException("Can't reach the backend: ${e.message ?: e.javaClass.simpleName}")
             } finally {
                 connection.disconnect()
             }
         }
+
+    private companion object {
+        const val TAG = "Backend"
+    }
 }

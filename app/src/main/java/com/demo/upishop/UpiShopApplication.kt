@@ -1,6 +1,7 @@
 package com.demo.upishop
 
 import android.app.Application
+import androidx.appcompat.app.AppCompatDelegate
 import com.adyen.checkout.core.AdyenLogLevel
 import com.adyen.checkout.core.AdyenLogger
 
@@ -8,6 +9,8 @@ class UpiShopApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Light mode only, so Compose screens and the Adyen views always match.
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         AppLog.init(this)
 
         // Route the Adyen SDK's own logs (component setup, status polling,

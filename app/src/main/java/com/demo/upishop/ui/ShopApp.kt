@@ -1,9 +1,7 @@
 package com.demo.upishop.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -24,11 +22,21 @@ fun ShopApp(viewModel: ShopViewModel) {
     var showLogs by remember { mutableStateOf(false) }
     val onLogs = { showLogs = true }
 
-    val colors = if (isSystemInDarkTheme()) {
-        darkColorScheme(primary = Green, onPrimary = Color.White)
-    } else {
-        lightColorScheme(primary = Green, onPrimary = Color.White)
-    }
+    // Light only, so Compose matches the Adyen Component's views.
+    val colors = lightColorScheme(
+        primary = Green,
+        onPrimary = Color.White,
+        primaryContainer = Color(0xFFDDF7E6),
+        onPrimaryContainer = Color(0xFF00391A),
+        background = Color.White,
+        onBackground = Color(0xFF111418),
+        surface = Color.White,
+        onSurface = Color(0xFF111418),
+        surfaceVariant = Color(0xFFF2F4F5),
+        onSurfaceVariant = Color(0xFF4A5157),
+        tertiary = Color(0xFFB26A00),
+        error = Color(0xFFC62828),
+    )
 
     MaterialTheme(colorScheme = colors) {
         BackHandler(enabled = state.screen != Screen.SHOP) { viewModel.back() }

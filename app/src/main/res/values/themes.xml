@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- A Material (AppCompat-based) theme is required: the Adyen Component
+    <!-- Always light: the Adyen Component's views are styled for a light
+         background, so the whole app stays light even in system dark mode.
+         A Material (AppCompat-based) theme is required: the Adyen Component
          is made of Material views and inflates against this theme. -->
-    <style name="Theme.UpiShop" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.UpiShop" parent="Theme.Material3.Light.NoActionBar">
         <item name="colorPrimary">#0ABF53</item>
         <item name="colorOnPrimary">#FFFFFF</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">#FFFFFF</item>
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 </resources>
